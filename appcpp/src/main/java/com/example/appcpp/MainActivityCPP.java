@@ -1,7 +1,5 @@
 package com.example.appcpp;
 
-import androidx.appcompat.app.AppCompatActivity;
-
 import android.os.Bundle;
 import android.util.Log;
 import android.view.SurfaceView;
@@ -12,11 +10,11 @@ import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Mat;
-import org.opencv.core.MatOfPoint;
-import org.opencv.core.Point;
-import org.opencv.core.Scalar;
-import org.opencv.imgproc.Imgproc;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.Collections;
 import java.util.List;
 
@@ -27,20 +25,17 @@ public class MainActivityCPP extends CameraActivity {
        System.loadLibrary("appcpp");
     }
 
-    public native void FindFeatures(long addrGray, long addrRGBA);
+    public native void Initfacedetector(String filePath);
+    public native void DetectFaces(long addrRGBA, long addrGRAY);
 
     BaseLoaderCallback baseLoaderCallback = new BaseLoaderCallback(this) {
         @Override
         public void onManagerConnected(int status) {
-            switch (status){
-                case LoaderCallbackInterface.SUCCESS:{
-                    Log.e("TAG", "OpenCv carregado");
-                    cameraBridgeViewBase.enableView();
-
-                }break;
-                default:{
-                    super.onManagerConnected(status);
-                }break;
+            if (status == LoaderCallbackInterface.SUCCESS) {
+                Log.e("TAG", "OpenCv carregado");
+                cameraBridgeViewBase.enableView();
+            } else {
+                super.onManagerConnected(status);
             }
         }
     };
@@ -52,6 +47,29 @@ public class MainActivityCPP extends CameraActivity {
         if (OpenCVLoader.initDebug()){
             Log.e("TAG", "deu bom");
         }
+
+        try{
+            File cascadeFile = new File(getCacheDir(), "haarcascade_frontalface_default.xml");
+
+            if (!cascadeFile.exists()) {
+                InputStream inputStream = getAssets().open("haarcascade_frontalface_default.xml");
+                FileOutputStream outputStream = new FileOutputStream(cascadeFile);
+                byte[] buffer = new byte[2048];
+                int bytesRead;
+
+                while ((bytesRead = inputStream.read(buffer)) != -1){
+                    outputStream.write(buffer, 0, bytesRead);
+                }
+
+                inputStream.close();
+                outputStream.close();
+            }
+            Initfacedetector(cascadeFile.getAbsolutePath());
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
         cameraBridgeViewBase=(CameraBridgeViewBase) findViewById(R.id.opencv_surface_view);
         cameraBridgeViewBase.setVisibility(SurfaceView.VISIBLE);
         cameraBridgeViewBase.setCvCameraViewListener(cvCameraViewListener2);
@@ -62,7 +80,7 @@ public class MainActivityCPP extends CameraActivity {
         return Collections.singletonList(cameraBridgeViewBase);
     }
 
-    private CameraBridgeViewBase.CvCameraViewListener2 cvCameraViewListener2 = new CameraBridgeViewBase.CvCameraViewListener2() {
+    private final CameraBridgeViewBase.CvCameraViewListener2 cvCameraViewListener2 = new CameraBridgeViewBase.CvCameraViewListener2() {
         @Override
         public void onCameraViewStarted(int width, int height) {
 
@@ -82,7 +100,7 @@ public class MainActivityCPP extends CameraActivity {
             Mat input_gray = inputFrame.gray(); //Canal em escala de cinza
 
             //Implementação do processamento em C++
-            FindFeatures(input_gray.getNativeObjAddr(), input_rgba.getNativeObjAddr());
+            DetectFaces(input_rgba.getNativeObjAddr(), input_gray.getNativeObjAddr());
             return input_rgba;
         }
     };

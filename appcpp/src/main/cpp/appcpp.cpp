@@ -4,20 +4,33 @@
 #include <opencv2/features2d.hpp>
 #include <vector>
 #include <string>
-#include <jni.h>
+#include <opencv2/objdetect.hpp>
 
 using namespace cv;
 
 extern "C"{
-    JNIEXPORT void JNICALL Java_com_example_appcpp_MainActivityCPP_FindFeatures(JNIEnv* jniEnv, jobject, jlong addrGray, jlong addrRGBA){
-        Mat* mGray = (Mat*)addrGray;
-        Mat* mRGBA = (Mat*)addrRGBA;
-        std::vector<Point2f> corners;
-        goodFeaturesToTrack(*mGray,corners,20,0.01,10,Mat(),3,false,0.04);
 
-        for(int i=0;i<corners.size();i++){
-            circle(*mRGBA,corners[i],10,Scalar(0,255,255),2);
+    CascadeClassifier face_cascade;
 
-        }
+    JNIEXPORT void JNICALL Java_com_example_appcpp_MainActivityCPP_Initfacedetector(JNIEnv* jniEnv, jobject, jstring jFilePath){
+
+        const char * jnamestr = jniEnv->GetStringUTFChars(jFilePath, nullptr);
+        std::string filePath(jnamestr);
+        face_cascade.load(filePath);
+
+    }
+
+
+    JNIEXPORT void JNICALL Java_com_example_appcpp_MainActivityCPP_DetectFaces(JNIEnv* jniEnv, jobject, jlong addrRGBA, jlong addrGRAY){
+        Mat* frame = (Mat*)addrRGBA;
+        Mat* framegray = (Mat*)addrGRAY;
+
+        std::vector<Rect> faces;
+        face_cascade.detectMultiScale(*framegray, faces);
+
+        for (auto & face : faces) {
+            rectangle(*frame, Point(face.x, face.y), Point(face.x + face.width, face.y + face.height), Scalar(0,255,0), 2);
+        };
+
     }
 }
